@@ -20,18 +20,20 @@
 > | name | in | data type | required | description |
 > | --- | --- | --- | --- | --- |
 {{range $param := $endpoint.Parameters -}}
-> | {{$param.Name}} | {{$param.In}} | {{template "typeSchema" $param.Schema}} | {{or $param.Required "false"}} | {{$param.Description}}  |
+> | {{$param.Name}} | {{$param.In}} | {{template "typeSchema" dict "SchemaProxy" $param.Schema}} | {{or $param.Required "false"}} | {{$param.Description}}  |
 {{end -}}
 {{- end -}}
 {{if $endpoint.RequestBody -}}
-> | body | body | {{template "typeBody" $endpoint.RequestBody}} | {{or $endpoint.RequestBody.Required "false"}} | {{$endpoint.RequestBody.Description}}  |
+{{- $bodyID := print $endpoint.OperationId "Body" -}}
+> | body | body | {{template "typeBody" dict "Description" $bodyID "Body" $endpoint.RequestBody}} | {{or $endpoint.RequestBody.Required "false"}} | {{$endpoint.RequestBody.Description}}  |
 {{end}}
 {{if $endpoint.Responses}}
 ### Responses
 > | status | description | schema |
 > | --- | --- | --- |
 {{range $status, $response := $endpoint.Responses.Codes.FromOldest -}}
-> | {{$status}} | {{$response.Description}} | {{template "typeContent" $response.Content}} |
+{{- $responseID := print $endpoint.OperationId "Response" $status -}}
+> | {{$status}} | {{$response.Description}} | {{template "typeContent" dict "Description" $responseID  "Content" $response.Content}} |
 {{end}}
 {{end}}
 </details>
@@ -50,54 +52,70 @@
 > | name | type | required | restrictions | description |
 > | --- | --- | --- | --- | --- |
 {{range $name, $prop := $schema.Properties.FromOldest -}}
-> | {{$name}} | {{template "typeSchema" $prop}} | {{contains $schema.Required $name}} |   | {{$prop.Schema.Description}} |
+> | {{$name}} | {{template "typeSchema" dict "SchemaProxy" $prop}} | {{contains $schema.Required $name}} |   | {{$prop.Schema.Description}} |
 {{end}}
 {{else if $schema.Items -}}
 #### Properties
 > | name | type | required | restrictions | description |
 > | --- | --- | --- | --- | --- |
-> | *anonymous* | [{{template "typeSchema" $schema.Items.A}}] | false | none | none  |
+> | *anonymous* | [{{template "typeSchema" dict "SchemaProxy" $schema.Items.A}}] | false | none | none  |
 {{end}}
 </details>
 {{end}}
 {{end}}
 
+{{/* generate body type */}}
 {{define "typeBody"}}
-{{- if . -}}
-{{template "typeContent" .Content}}
-{{- end -}}
+    {{- with $dict := . -}}
+        {{- $body := .Body -}}
+        {{- $description := .Description -}}
+        {{template "typeContent" dict "Description" $description "Content" $body.Content}}
+    {{- end -}}
 {{end}}
 
+{{/* generate content type */}}
 {{define "typeContent"}}
-{{- if . -}}
-{{- $sep := "" -}}
-{{- range $mediaType, $schema := .FromOldest -}}
-{{- $sep -}}{{template "typeSchema" $schema.Schema}}
-{{- $sep = "<br/>" -}}
-{{- end -}}
-{{- end -}}
+    {{- with $dict := . -}}
+        {{- $content := $dict.Content -}}
+        {{- $description := $dict.Description -}}
+        {{- $first := true -}}
+        {{- range $mediaType, $schemaProxy := $content.FromOldest -}}
+            {{- if not $first -}}<br/>{{- end -}}{{template "typeSchema" dict "Description" $description "SchemaProxy" $schemaProxy.Schema }}
+            {{- $first = false -}}
+        {{- end -}}
+    {{- end -}}
 {{end}}
 
+
+{{/* generate schema proxy type */}}
 {{define "typeSchema"}}
-{{- if .IsReference -}}
-[{{ refName .GetReference }}]({{ refAnchor .GetReference}})
-{{- else -}}
-{{- with $schema := .Schema -}}
-{{- if .Type -}}
-{{- with $type := index .Type 0 -}}
-{{- if eq $type "array" -}}
-[{{template "typeSchema" $schema.Items.A}}]
-{{- else  -}}
-{{- $type -}}{{if  $schema.Format -}}({{ $schema.Format }}){{- end -}}
-{{- end -}}
-{{- end -}}
-{{- if .Enum -}}
-<br/>*Available values:* {{range $index,$value := .Enum}}{{- if $index -}}, {{ end -}}{{- $value.Value -}}{{- end -}}
-{{- end -}}
-{{- if .Default -}}
-<br/>*Default value:* {{.Default.Value}}
-{{- end -}}
-{{- end -}}
-{{- end -}}
-{{- end -}}
+    {{- with $dict := . -}}
+        {{- $schemaProxy := $dict.SchemaProxy -}}
+        {{- $description := $dict.Description -}}
+        {{- if $schemaProxy.IsReference -}}
+            [{{ refName $schemaProxy.GetReference }}](#{{ refAnchor $schemaProxy.GetReference}})
+        {{- else -}}
+            {{- with $schema := $schemaProxy.Schema -}}
+                {{- if .Type -}}
+                    {{- with $type := index .Type 0 -}}
+                        {{- if eq $type "array" -}}
+                            [{{template "typeSchema" dict "Description" $description "SchemaProxy" $schema.Items.A}}]
+                        {{- else  -}}
+                            {{- if eq $type "object" -}}
+                                [object](#{{ $description }})
+                            {{- else  -}}
+                                {{- $type -}}{{if  $schema.Format -}}({{ $schema.Format }}){{- end -}}
+                            {{- end -}}
+                        {{- end -}}
+                    {{- end -}}
+                    {{- if .Enum -}}
+                        <br/>*Available values:* {{range $index,$value := .Enum}}{{- if $index -}}, {{ end -}}{{- $value.Value -}}{{- end -}}
+                    {{- end -}}
+                    {{- if .Default -}}
+                        <br/>*Default value:* {{.Default.Value}}
+                    {{- end -}}
+                {{- end -}}
+            {{- end -}}
+        {{- end -}}
+    {{- end -}}
 {{end}}

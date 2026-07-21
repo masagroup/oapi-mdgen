@@ -2,6 +2,7 @@ package driver
 
 import (
 	_ "embed"
+	"errors"
 	"fmt"
 	"html/template"
 	"iter"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"unicode"
 
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
@@ -54,20 +56,58 @@ func orString(a, b string) string {
 	return b
 }
 
+func pathToCamelCase(path string) string {
+	// Split by non-alphanumeric characters (slashes, hyphens, braces, etc.)
+	words := strings.FieldsFunc(path, func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	})
+	if len(words) == 0 {
+		return ""
+	}
+	var builder strings.Builder
+	for i, word := range words {
+		if i == 0 {
+			// First word: force the first letter to lowercase
+			builder.WriteString(strings.ToLower(word[:1]) + word[1:])
+		} else {
+			// Subsequent words: force the first letter to uppercase
+			builder.WriteString(strings.ToUpper(word[:1]) + word[1:])
+		}
+	}
+	return builder.String()
+}
+
 func refName(ref string) string {
 	return filepath.Base(ref)
 }
 
 func refAnchor(ref string) string {
-	return strings.ReplaceAll(ref, "/", "")
+	return pathToCamelCase(ref)
 }
 
 func refID(ref string) string {
 	if ref[0] == '#' {
 		ref = ref[1:]
 	}
-	return strings.ReplaceAll(ref, "/", "")
+	return pathToCamelCase(ref)
 }
+
+func dict(values ...any) (map[string]any, error) {
+	if len(values)%2 != 0 {
+		return nil, errors.New("invalid dict call")
+	}
+	dict := make(map[string]any, len(values)/2)
+	for i := 0; i < len(values); i += 2 {
+		key, ok := values[i].(string)
+		if !ok {
+			return nil, errors.New("dict keys must be strings")
+		}
+		dict[key] = values[i+1]
+	}
+	return dict, nil
+}
+
+const defaultTag = "default"
 
 func extractModel(document *v3.Document, model *Model) error {
 	// endpoints are grouped by tags, so we need to iterate over all paths
@@ -77,19 +117,25 @@ func extractModel(document *v3.Document, model *Model) error {
 			extractSchema(param.Schema, model)
 		}
 		for method, operation := range mapIterator(pathItem.GetOperations()) {
+			operationMethod := strings.ToUpper(method)
+			operationID := pathToCamelCase(operationMethod + "-" + path)
 			// for each operation, we create an endpoint and add it to the corresponding tag in the model.
 			endpoint := &Endpoint{
-				Method:      strings.ToUpper(method),
+				Method:      operationMethod,
 				Path:        path,
 				Summary:     orString(operation.Summary, pathItem.Summary),
 				Description: orString(operation.Description, pathItem.Description),
-				OperationId: operation.OperationId,
+				OperationId: orString(operation.OperationId, operationID),
 				Parameters:  append(pathItem.Parameters, operation.Parameters...),
 				RequestBody: operation.RequestBody,
 				Responses:   operation.Responses,
 			}
-			for _, tag := range operation.Tags {
-				model.TagToEndpoints[tag] = append(model.TagToEndpoints[tag], endpoint)
+			if len(operation.Tags) == 0 {
+				model.TagToEndpoints[defaultTag] = append(model.TagToEndpoints[defaultTag], endpoint)
+			} else {
+				for _, tag := range operation.Tags {
+					model.TagToEndpoints[tag] = append(model.TagToEndpoints[tag], endpoint)
+				}
 			}
 			// for each operation parameter, requestbody , response, we need to extract the schema and add it to the model.
 			for _, param := range operation.Parameters {
@@ -167,6 +213,7 @@ func GenerateMarkdown(input, output string) (err error) {
 	}
 
 	funcMap := template.FuncMap{
+		"dict":      dict,
 		"refName":   refName,
 		"refAnchor": refAnchor,
 		"refID":     refID,
