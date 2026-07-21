@@ -20,12 +20,28 @@
 > | name | in | data type | required | description |
 > | --- | --- | --- | --- | --- |
 {{range $param := $endpoint.Parameters -}}
-> | {{$param.Name}} | {{$param.In}} | {{template "typeSchema" dict "SchemaProxy" $param.Schema}} | {{or $param.Required "false"}} | {{$param.Description}}  |
+> | {{$param.Name}} | {{$param.In}} | {{template "schemaType" dict "SchemaProxy" $param.Schema}} | {{or $param.Required "false"}} | {{$param.Description}}  |
 {{end -}}
 {{- end -}}
 {{if $endpoint.RequestBody -}}
 {{- $bodyID := print $endpoint.OperationId "Body" -}}
-> | body | body | {{template "typeBody" dict "Description" $bodyID "Body" $endpoint.RequestBody}} | {{or $endpoint.RequestBody.Required "false"}} | {{$endpoint.RequestBody.Description}}  |
+> | body | body | {{template "bodyType" dict "Body" $endpoint.RequestBody}} | {{or $endpoint.RequestBody.Required "false"}} | {{$endpoint.RequestBody.Description}}  |
+{{range $contentType, $mediaType := $endpoint.RequestBody.Content.FromOldest -}}
+{{- $schemaProxy := $mediaType.Schema -}}
+{{- if not $schemaProxy.IsReference -}}
+{{- with $schema := $schemaProxy.Schema -}}
+{{- with  $type := index $schema.Type 0 -}}
+{{- if eq $type "object" -}}
+
+#### {{$contentType}}
+
+> | name | in | data type | required | description |
+> | --- | --- | --- | --- | --- |
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{end}}
 {{end}}
 {{if $endpoint.Responses}}
 ### Responses
@@ -33,7 +49,7 @@
 > | --- | --- | --- |
 {{range $status, $response := $endpoint.Responses.Codes.FromOldest -}}
 {{- $responseID := print $endpoint.OperationId "Response" $status -}}
-> | {{$status}} | {{$response.Description}} | {{template "typeContent" dict "Description" $responseID  "Content" $response.Content}} |
+> | {{$status}} | {{$response.Description}} | {{template "contentType" dict "Description" $responseID  "Content" $response.Content}} |
 {{end}}
 {{end}}
 </details>
@@ -48,39 +64,50 @@
 <details>
 <summary><code>{{refName $ref}}</code></summary>
 {{if $schema.Properties}}
-#### Properties
-> | name | type | required | restrictions | description |
-> | --- | --- | --- | --- | --- |
+### Properties
+> | name | type | required | description |
+> | --- | --- | --- | ---  |
 {{range $name, $prop := $schema.Properties.FromOldest -}}
-> | {{$name}} | {{template "typeSchema" dict "SchemaProxy" $prop}} | {{contains $schema.Required $name}} |   | {{$prop.Schema.Description}} |
+> | {{$name}} | {{template "schemaType" dict "SchemaProxy" $prop}} | {{contains $schema.Required $name}} | {{$prop.Schema.Description}} |
 {{end}}
 {{else if $schema.Items -}}
-#### Properties
-> | name | type | required | restrictions | description |
-> | --- | --- | --- | --- | --- |
-> | *anonymous* | [{{template "typeSchema" dict "SchemaProxy" $schema.Items.A}}] | false | none | none  |
+### Properties
+> | name | type | required | description |
+> | --- | --- | --- | --- |
+> | *anonymous* | [{{template "schemaType" dict "SchemaProxy" $schema.Items.A}}] | false | none  |
 {{end}}
 </details>
 {{end}}
 {{end}}
 
+{{/* {{define "schema"}}
+    {{- with $dict := . -}}
+        {{- $depth := $dict.Depth -}}
+        {{- $schema := $dict.Schema -}}
+        {{- range $name, $prop := $schema.Properties.FromOldest -}}
+        > | └{{for range rangeInt($depth)}}─ {{$name}}{{end}}
+        {{- end -}}
+    {{- end -}}
+{{end}} */}}
+
 {{/* generate body type */}}
-{{define "typeBody"}}
+{{define "bodyType"}}
     {{- with $dict := . -}}
         {{- $body := .Body -}}
         {{- $description := .Description -}}
-        {{template "typeContent" dict "Description" $description "Content" $body.Content}}
+        {{template "contentType" dict "Description" $description "Content" $body.Content}}
     {{- end -}}
 {{end}}
 
 {{/* generate content type */}}
-{{define "typeContent"}}
+{{define "contentType"}}
     {{- with $dict := . -}}
         {{- $content := $dict.Content -}}
         {{- $description := $dict.Description -}}
         {{- $first := true -}}
-        {{- range $mediaType, $schemaProxy := $content.FromOldest -}}
-            {{- if not $first -}}<br/>{{- end -}}{{template "typeSchema" dict "Description" $description "SchemaProxy" $schemaProxy.Schema }}
+        {{- range $contentType, $mediaType := $content.FromOldest -}}
+            {{- $contentDesc := and $description (refID (print $description "-" $contentType)) -}}
+            {{- if not $first -}}<br/>{{- end -}}{{template "schemaType" dict "Description" $contentDesc "SchemaProxy" $mediaType.Schema }}
             {{- $first = false -}}
         {{- end -}}
     {{- end -}}
@@ -88,7 +115,7 @@
 
 
 {{/* generate schema proxy type */}}
-{{define "typeSchema"}}
+{{define "schemaType"}}
     {{- with $dict := . -}}
         {{- $schemaProxy := $dict.SchemaProxy -}}
         {{- $description := $dict.Description -}}
@@ -99,13 +126,15 @@
                 {{- if .Type -}}
                     {{- with $type := index .Type 0 -}}
                         {{- if eq $type "array" -}}
-                            [{{template "typeSchema" dict "Description" $description "SchemaProxy" $schema.Items.A}}]
-                        {{- else  -}}
-                            {{- if eq $type "object" -}}
-                                [object](#{{ $description }})
-                            {{- else  -}}
-                                {{- $type -}}{{if  $schema.Format -}}({{ $schema.Format }}){{- end -}}
+                            [{{template "schemaType" dict "Description" $description "SchemaProxy" $schema.Items.A}}]
+                        {{- else if eq $type "object" -}}
+                            {{- if $description -}}
+                            [object](#{{refID (print $description "-" $schema.Title)}})
+                            {{- else -}}
+                            object
                             {{- end -}}
+                        {{- else  -}}
+                            {{- $type -}}{{if  $schema.Format -}}({{ $schema.Format }}){{- end -}}
                         {{- end -}}
                     {{- end -}}
                     {{- if .Enum -}}
@@ -119,3 +148,4 @@
         {{- end -}}
     {{- end -}}
 {{end}}
+
