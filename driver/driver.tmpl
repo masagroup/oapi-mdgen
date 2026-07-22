@@ -24,11 +24,15 @@
 {{end -}}
 {{- end -}}
 {{if $endpoint.RequestBody -}}
-{{- $bodyID := print $endpoint.OperationId "Body" -}}
-> | body | body | {{template "bodyType" dict "Body" $endpoint.RequestBody}} | {{or $endpoint.RequestBody.Required "false"}} | {{$endpoint.RequestBody.Description}}  |
+{{- $description := print $endpoint.OperationId "Body" -}}
 {{- $content := $endpoint.RequestBody.Content -}}
-{{- if eq (and $content $content.Len) 1 -}}
-{{template "bodySchema" dict "SchemaProxy" $content.First.Value.Schema "Depth" 0}}
+{{- $withInlineSchema := eq (and $content $content.Len) 1 -}}
+{{- if $withInlineSchema -}}
+{{- $description = "" -}}
+{{- end -}}
+> | body | body | {{template "bodyType" dict "Body" $endpoint.RequestBody "Description" $description}} | {{or $endpoint.RequestBody.Required "false"}} | {{$endpoint.RequestBody.Description}}  |
+{{- if $withInlineSchema -}}
+{{template "schema" dict "SchemaProxy" $endpoint.RequestBody.Content.First.Value.Schema "In" "body" "Depth" 0}}
 {{end}}
 {{end}}
 {{if $endpoint.Responses}}
@@ -39,6 +43,24 @@
 {{- $responseID := print $endpoint.OperationId "Response" $status -}}
 > | {{$status}} | {{$response.Description}} | {{template "contentType" dict "Description" $responseID  "Content" $response.Content}} |
 {{end}}
+{{- $responseSchema := false }}
+{{- range $status, $response := $endpoint.Responses.Codes.FromOldest -}}
+{{- range $contentType , $mediaType := $response.Content.FromOldest -}}
+{{- if not $mediaType.Schema.IsReference -}}
+{{- $schemaProxy := $mediaType.Schema -}}
+{{- if not $responseSchema }}
+### Responses Schema
+{{- $responseSchema = true -}}
+{{end}}
+{{$schemaID := refID (print $endpoint.OperationId "Response" "-" $status "-" $contentType "-" $schemaProxy.Schema.Title)}}
+<a id="{{$schemaID}}"></a>
+Status Code {{$status}}
+> | name | type | required |description |
+> | --- | --- | --- | --- |
+{{- template "schema" dict "SchemaProxy" $schemaProxy "Depth" 0}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
 {{end}}
 </details>
 {{end}}
@@ -46,8 +68,9 @@
 {{end}}
 
 {{define "schemas"}}
+{{- with $schemas := .RefToSchema -}}
 ## Schemas
-{{range $ref, $schema := .RefToSchema}}
+{{range $ref, $schema := $schemas}}
 <a id="{{refID $ref}}"></a>
 <details>
 <summary><code>{{refName $ref}}</code></summary>
@@ -66,25 +89,27 @@
 {{end}}
 </details>
 {{end}}
+{{- end -}}
 {{end}}
 
-{{/* generate inline body schema */}}
-{{define "bodySchema"}}
+{{/* generate inline schema */}}
+{{define "schema"}}
     {{- with $dict := . -}}
         {{- $depth := $dict.Depth -}}
         {{- $schemaProxy := $dict.SchemaProxy -}}
+        {{- $in := $dict.In -}}
         {{- if not $schemaProxy.IsReference -}}
             {{- with $schema := $schemaProxy.Schema}}
             {{- range $name, $prop := $schema.Properties.FromOldest}}
-> | {{range until $depth}}  {{end}}└── {{$name}} | body | {{template "schemaType" dict "SchemaProxy" $prop}} | {{contains $schema.Required $name}} | {{$prop.Schema.Description}} |
+> | {{range until $depth}}  {{end}}└── {{$name}} {{if $in}}| {{$in}} {{end}}| {{template "schemaType" dict "SchemaProxy" $prop}} | {{contains $schema.Required $name}} | {{$prop.Schema.Description}} |
                 {{- if not $prop.IsReference -}}                   
                     {{- with  $type := index $schema.Type 0 -}}
                         {{- if eq $type "object" -}}
-{{template "bodySchema" dict "SchemaProxy" $prop "Depth" (add $depth 1)}}
+{{template "schema" dict "SchemaProxy" $prop "Depth" (add $depth 1)}}
                         {{- end -}}
                     {{- end -}}
                 {{- end -}}
-            {{- end -}}
+            {{end -}}
             {{- end -}}
         {{- end -}}
     {{- end -}}
@@ -104,13 +129,13 @@
     {{- with $dict := . -}}
         {{- $content := $dict.Content -}}
         {{- $description := $dict.Description -}}
-        {{- $showContentType := and $content (gt $content.Len 1) -}}
-        {{if $showContentType}}<dl>{{end}}
+        {{- $withContentType := and $content (gt $content.Len 1) -}}
+        {{if $withContentType}}<dl>{{end}}
         {{- range $contentType, $mediaType := $content.FromOldest -}}
             {{- $contentDesc := and $description (refID (print $description "-" $contentType)) -}}
-            {{- if $showContentType -}}<dt>**{{$contentType}}**</dt><dd>{{- end -}}{{template "schemaType" dict "Description" $contentDesc "SchemaProxy" $mediaType.Schema }}{{- if $showContentType -}}</dd>{{- end -}}
+            {{- if $withContentType -}}<dt>**{{$contentType}}**</dt><dd>{{- end -}}{{template "schemaType" dict "Description" $contentDesc "SchemaProxy" $mediaType.Schema }}{{- if $withContentType -}}</dd>{{- end -}}
         {{- end -}}
-        {{if $showContentType}}</dl>{{end}}
+        {{if $withContentType}}</dl>{{end}}
     {{- end -}}
 {{end}}
 
@@ -130,7 +155,7 @@
                             [{{template "schemaType" dict "Description" $description "SchemaProxy" $schema.Items.A}}]
                         {{- else if eq $type "object" -}}
                             {{- if $description -}}
-                            [object](#{{refID (print $description "-" $schema.Title)}})
+                            [{{or $schema.Title "object"}}](#{{refID (print $description "-" $schema.Title)}})
                             {{- else -}}
                             object
                             {{- end -}}
