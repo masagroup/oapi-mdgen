@@ -104,12 +104,13 @@
     {{- with $dict := . -}}
         {{- $content := $dict.Content -}}
         {{- $description := $dict.Description -}}
-        {{- $first := true -}}
+        {{- $showContentType := and $content (gt $content.Len 1) -}}
+        {{if $showContentType}}<dl>{{end}}
         {{- range $contentType, $mediaType := $content.FromOldest -}}
             {{- $contentDesc := and $description (refID (print $description "-" $contentType)) -}}
-            {{- if not $first -}}<br/>{{- end -}}{{template "schemaType" dict "Description" $contentDesc "SchemaProxy" $mediaType.Schema }}
-            {{- $first = false -}}
+            {{- if $showContentType -}}<dt>**{{$contentType}}**</dt><dd>{{- end -}}{{template "schemaType" dict "Description" $contentDesc "SchemaProxy" $mediaType.Schema }}{{- if $showContentType -}}</dd>{{- end -}}
         {{- end -}}
+        {{if $showContentType}}</dl>{{end}}
     {{- end -}}
 {{end}}
 
