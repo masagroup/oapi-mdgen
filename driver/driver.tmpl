@@ -16,6 +16,7 @@
 {{$endpoint.Description}}
 {{end}}
 {{if or $endpoint.Parameters $endpoint.RequestBody}}
+{{- /* endpoint request parameters */ -}}
 ### Parameters
 > | name | in | data type | required | description |
 > | --- | --- | --- | --- | --- |
@@ -23,6 +24,7 @@
 > | {{$param.Name}} | {{$param.In}} | {{template "schemaType" dict "SchemaProxy" $param.Schema}} | {{or $param.Required "false"}} | {{$param.Description}}  |
 {{end -}}
 {{- end -}}
+{{- /* endpoint request body */ -}}
 {{if $endpoint.RequestBody -}}
 {{- $description := print $endpoint.OperationId "Body" -}}
 {{- $content := $endpoint.RequestBody.Content -}}
@@ -35,6 +37,7 @@
 {{template "schema" dict "SchemaProxy" $endpoint.RequestBody.Content.First.Value.Schema "In" "body" "Depth" 0}}
 {{end}}
 {{end}}
+{{- /* endpoint responses */ -}}
 {{if $endpoint.Responses}}
 ### Responses
 > | status | description | schema |
@@ -43,24 +46,35 @@
 {{- $responseID := print $endpoint.OperationId "Response" $status -}}
 > | {{$status}} | {{$response.Description}} | {{template "contentType" dict "Description" $responseID  "Content" $response.Content}} |
 {{end}}
+{{- /* endpoint inline responses schema */ -}}
 {{- $responseSchema := false }}
 {{- range $status, $response := $endpoint.Responses.Codes.FromOldest -}}
-{{- range $contentType , $mediaType := $response.Content.FromOldest -}}
-{{- if not $mediaType.Schema.IsReference -}}
-{{- $schemaProxy := $mediaType.Schema -}}
-{{- if not $responseSchema }}
+    {{- range $contentType , $mediaType := $response.Content.FromOldest -}}
+        {{- $schemaProxy := $mediaType.Schema -}}
+        {{- $childSchemaProxy := null -}}
+        {{- with $schema := $schemaProxy.Schema -}}
+        {{- with $type := index $schema.Type 0 -}}
+            {{- if eq $type "object" -}}
+            {{- $childSchemaProxy = $schemaProxy -}}
+            {{- else if eq $type "array"}}
+            {{- $childSchemaProxy = $schema.Items.A -}}
+            {{- end -}}
+        {{- end -}}
+        {{- end -}}
+        {{- if and $childSchemaProxy (not $childSchemaProxy.IsReference) -}}
+            {{- if not $responseSchema }}
 ### Responses Schema
-{{- $responseSchema = true -}}
-{{end}}
-{{$schemaID := refID (print $endpoint.OperationId "Response" "-" $status "-" $contentType "-" $schemaProxy.Schema.Title)}}
+            {{- $responseSchema = true -}}
+            {{end}}
+            {{- $schemaID := refID (print $endpoint.OperationId "Response" "-" $status "-" $contentType "-" $childSchemaProxy.Schema.Title) -}}
 <a id="{{$schemaID}}"></a>
 Status Code {{$status}}
 > | name | type | required |description |
 > | --- | --- | --- | --- |
-{{- template "schema" dict "SchemaProxy" $schemaProxy "Depth" 0}}
-{{- end -}}
-{{- end -}}
-{{- end -}}
+            {{- template "schema" dict "SchemaProxy" $childSchemaProxy "Depth" 0}}
+        {{- end -}}
+    {{- end -}}
+{{- end -}}    
 {{end}}
 </details>
 {{end}}

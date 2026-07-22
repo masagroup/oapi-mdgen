@@ -121,6 +121,10 @@ func until(end int) iter.Seq[int] {
 	}
 }
 
+func null() any {
+	return nil
+}
+
 const defaultTag = "default"
 
 func extractModel(document *v3.Document, model *Model) error {
@@ -234,6 +238,7 @@ func GenerateMarkdown(input, output string) (err error) {
 		"refID":     refID,
 		"contains":  slices.Contains[[]string, string],
 		"until":     until,
+		"null":      null,
 	}
 
 	// we can now use the v3 model to generate markdown documentation.
