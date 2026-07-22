@@ -26,21 +26,9 @@
 {{if $endpoint.RequestBody -}}
 {{- $bodyID := print $endpoint.OperationId "Body" -}}
 > | body | body | {{template "bodyType" dict "Body" $endpoint.RequestBody}} | {{or $endpoint.RequestBody.Required "false"}} | {{$endpoint.RequestBody.Description}}  |
-{{range $contentType, $mediaType := $endpoint.RequestBody.Content.FromOldest -}}
-{{- $schemaProxy := $mediaType.Schema -}}
-{{- if not $schemaProxy.IsReference -}}
-{{- with $schema := $schemaProxy.Schema -}}
-{{- with  $type := index $schema.Type 0 -}}
-{{- if eq $type "object" -}}
-
-#### {{$contentType}}
-
-> | name | in | data type | required | description |
-> | --- | --- | --- | --- | --- |
-{{- end -}}
-{{- end -}}
-{{- end -}}
-{{- end -}}
+{{- $content := $endpoint.RequestBody.Content -}}
+{{- if eq (and $content $content.Len) 1 -}}
+{{template "bodySchema" dict "SchemaProxy" $content.First.Value.Schema "Depth" 0}}
 {{end}}
 {{end}}
 {{if $endpoint.Responses}}
@@ -80,15 +68,27 @@
 {{end}}
 {{end}}
 
-{{/* {{define "schema"}}
+{{/* generate inline body schema */}}
+{{define "bodySchema"}}
     {{- with $dict := . -}}
         {{- $depth := $dict.Depth -}}
-        {{- $schema := $dict.Schema -}}
-        {{- range $name, $prop := $schema.Properties.FromOldest -}}
-        > | └{{for range rangeInt($depth)}}─ {{$name}}{{end}}
+        {{- $schemaProxy := $dict.SchemaProxy -}}
+        {{- if not $schemaProxy.IsReference -}}
+            {{- with $schema := $schemaProxy.Schema}}
+            {{- range $name, $prop := $schema.Properties.FromOldest}}
+> | {{range until $depth}}  {{end}}└── {{$name}} | body | {{template "schemaType" dict "SchemaProxy" $prop}} | {{contains $schema.Required $name}} | {{$prop.Schema.Description}} |
+                {{- if not $prop.IsReference -}}                   
+                    {{- with  $type := index $schema.Type 0 -}}
+                        {{- if eq $type "object" -}}
+{{template "bodySchema" dict "SchemaProxy" $prop "Depth" (add $depth 1)}}
+                        {{- end -}}
+                    {{- end -}}
+                {{- end -}}
+            {{- end -}}
+            {{- end -}}
         {{- end -}}
     {{- end -}}
-{{end}} */}}
+{{end}}
 
 {{/* generate body type */}}
 {{define "bodyType"}}

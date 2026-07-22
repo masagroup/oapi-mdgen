@@ -92,6 +92,10 @@ func refID(ref string) string {
 	return pathToCamelCase(ref)
 }
 
+func add(i, j int) int {
+	return i + j
+}
+
 func dict(values ...any) (map[string]any, error) {
 	if len(values)%2 != 0 {
 		return nil, errors.New("invalid dict call")
@@ -105,6 +109,16 @@ func dict(values ...any) (map[string]any, error) {
 		dict[key] = values[i+1]
 	}
 	return dict, nil
+}
+
+func until(end int) iter.Seq[int] {
+	return func(yield func(int) bool) {
+		for i := range end {
+			if !yield(i) {
+				return
+			}
+		}
+	}
 }
 
 const defaultTag = "default"
@@ -214,10 +228,12 @@ func GenerateMarkdown(input, output string) (err error) {
 
 	funcMap := template.FuncMap{
 		"dict":      dict,
+		"add":       add,
 		"refName":   refName,
 		"refAnchor": refAnchor,
 		"refID":     refID,
 		"contains":  slices.Contains[[]string, string],
+		"until":     until,
 	}
 
 	// we can now use the v3 model to generate markdown documentation.
