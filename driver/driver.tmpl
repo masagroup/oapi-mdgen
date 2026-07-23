@@ -100,6 +100,20 @@ Status Code {{$status}}
 > | name | type | required | description |
 > | --- | --- | --- | --- |
 > | *anonymous* | [{{template "schemaType" dict "SchemaProxy" $schema.Items.A}}] | false | none  |
+{{else if $schema.Enum -}}
+{{with $type := index $schema.Type 0}}
+### Properties
+> | name | type | required | description |
+> | --- | --- | --- | --- |
+> | *anonymous* | {{$type}} | false | none  |
+{{end}}
+
+### Enumerated Values
+> | value | 
+> | --- |
+{{range $node := $schema.Enum -}}
+> | {{$node.Value}} |
+{{end}}
 {{end}}
 </details>
 {{end}}
