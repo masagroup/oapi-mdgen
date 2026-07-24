@@ -126,7 +126,7 @@
 > | name | type | required | description |
 > | --- | --- | --- | ---  |
 {{range $name, $prop := $schema.Properties.FromOldest -}}
-> | {{$name}} | {{template "schemaType" dict "SchemaProxy" $prop}} | {{contains $schema.Required $name}} | {{$prop.Schema.Id}} |
+> | {{$name}} | {{template "schemaType" dict "SchemaProxy" $prop}} | {{contains $schema.Required $name}} | {{$prop.Schema.Description}} |
 {{end}}
 {{else if $schema.Items -}}
 ### Properties
