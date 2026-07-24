@@ -24,6 +24,7 @@ var markDownTemplate string
 type Model struct {
 	Version        string
 	Infos          *base.Info
+	Tags           map[string]*base.Tag
 	TagToEndpoints map[string][]*Endpoint
 	RefToSchema    map[string]*base.Schema
 }
@@ -56,36 +57,40 @@ func orString(a, b string) string {
 	return b
 }
 
-func pathToCamelCase(path string) string {
+func pathToCamelCase(path string) (string, error) {
 	// Split by non-alphanumeric characters (slashes, hyphens, braces, etc.)
 	words := strings.FieldsFunc(path, func(r rune) bool {
 		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
 	})
 	if len(words) == 0 {
-		return ""
+		return "", nil
 	}
 	var builder strings.Builder
 	for i, word := range words {
 		if i == 0 {
 			// First word: force the first letter to lowercase
-			builder.WriteString(strings.ToLower(word[:1]) + word[1:])
+			if _, err := builder.WriteString(strings.ToLower(word[:1]) + word[1:]); err != nil {
+				return "", err
+			}
 		} else {
 			// Subsequent words: force the first letter to uppercase
-			builder.WriteString(strings.ToUpper(word[:1]) + word[1:])
+			if _, err := builder.WriteString(strings.ToUpper(word[:1]) + word[1:]); err != nil {
+				return "", err
+			}
 		}
 	}
-	return builder.String()
+	return builder.String(), nil
 }
 
 func refName(ref string) string {
 	return filepath.Base(ref)
 }
 
-func refAnchor(ref string) string {
+func refAnchor(ref string) (string, error) {
 	return pathToCamelCase(ref)
 }
 
-func refID(ref string) string {
+func refID(ref string) (string, error) {
 	if ref[0] == '#' {
 		ref = ref[1:]
 	}
@@ -128,6 +133,10 @@ func null() any {
 const defaultTag = "default"
 
 func extractModel(document *v3.Document, model *Model) error {
+	// tags
+	for _, tag := range document.Tags {
+		model.Tags[tag.Name] = tag
+	}
 	// endpoints are grouped by tags, so we need to iterate over all paths
 	// and operations to extract the tags and their corresponding endpoints.
 	for path, pathItem := range mapIterator(document.Paths.PathItems) {
@@ -136,7 +145,10 @@ func extractModel(document *v3.Document, model *Model) error {
 		}
 		for method, operation := range mapIterator(pathItem.GetOperations()) {
 			operationMethod := strings.ToUpper(method)
-			operationID := pathToCamelCase(operationMethod + "-" + path)
+			operationID, err := pathToCamelCase(operationMethod + "-" + path)
+			if err != nil {
+				return err
+			}
 			// for each operation, we create an endpoint and add it to the corresponding tag in the model.
 			endpoint := &Endpoint{
 				Method:      operationMethod,
@@ -222,6 +234,7 @@ func GenerateMarkdown(input, output string) (err error) {
 	mdModel := &Model{
 		Version:        v3Model.Model.Version,
 		Infos:          v3Model.Model.Info,
+		Tags:           map[string]*base.Tag{},
 		TagToEndpoints: map[string][]*Endpoint{},
 		RefToSchema:    map[string]*base.Schema{},
 	}
