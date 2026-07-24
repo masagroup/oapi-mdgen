@@ -42,7 +42,7 @@
 {{- if $withProperties -}}
 {{- /* add body properties in parameters if we have only one content */ -}}
 {{template "schemaProperties" dict "SchemaProxy" $endpoint.RequestBody.Content.First.Value.Schema "In" "body" "Depth" 0}}
-{{- else -}}
+{{else}}
 {{- /* add body content contents details */ -}}
 {{ template "schemaContent" dict "Header" "Body Schema" "Content" $content "Id" $bodyID}}
 {{- end -}}
