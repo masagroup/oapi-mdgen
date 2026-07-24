@@ -26,16 +26,20 @@
 {{- end -}}
 {{- /* endpoint request body */ -}}
 {{if $endpoint.RequestBody -}}
-{{- $description := print $endpoint.OperationId "Body" -}}
+{{- $bodyID := print $endpoint.OperationId "Body" -}}
 {{- $content := $endpoint.RequestBody.Content -}}
-{{- $withInlineSchema := eq (and $content $content.Len) 1 -}}
-{{- if $withInlineSchema -}}
-{{- $description = "" -}}
+{{- $withProperties := eq (and $content $content.Len) 1 -}}
+{{- if $withProperties -}}
+    {{- $bodyID = "" -}}
 {{- end -}}
-> | body | body | {{template "bodyType" dict "Body" $endpoint.RequestBody "Description" $description}} | {{or $endpoint.RequestBody.Required "false"}} | {{$endpoint.RequestBody.Description}}  |
-{{- if $withInlineSchema -}}
-{{template "schema" dict "SchemaProxy" $endpoint.RequestBody.Content.First.Value.Schema "In" "body" "Depth" 0}}
-{{end}}
+> | body | body | {{template "bodyType" dict "Body" $endpoint.RequestBody "Id" $bodyID}} | {{or $endpoint.RequestBody.Required "false"}} | {{$endpoint.RequestBody.Description}}  |
+{{- if $withProperties -}}
+{{- /* add body properties in parameters if we have only one content */ -}}
+{{template "schemaProperties" dict "SchemaProxy" $endpoint.RequestBody.Content.First.Value.Schema "In" "body" "Depth" 0}}
+{{- else -}}
+{{- /* add body content contents details */ -}}
+{{ template "schemaContent" dict "Header" "Body Schema" "Content" $content "Id" $bodyID}}
+{{- end -}}
 {{end}}
 {{- /* endpoint responses */ -}}
 {{if $endpoint.Responses}}
@@ -44,36 +48,14 @@
 > | --- | --- | --- |
 {{range $status, $response := $endpoint.Responses.Codes.FromOldest -}}
 {{- $responseID := print $endpoint.OperationId "Response" $status -}}
-> | {{$status}} | {{$response.Description}} | {{template "contentType" dict "Description" $responseID  "Content" $response.Content}} |
+> | {{$status}} | {{$response.Description}} | {{template "contentType" dict "Id" $responseID  "Content" $response.Content}} |
 {{end}}
-{{- /* endpoint inline responses schema */ -}}
+{{- /* endpoint responses schema */ -}}
 {{- $responseSchema := false }}
-{{- range $status, $response := $endpoint.Responses.Codes.FromOldest -}}
-    {{- range $contentType , $mediaType := $response.Content.FromOldest -}}
-        {{- $schemaProxy := $mediaType.Schema -}}
-        {{- $childSchemaProxy := null -}}
-        {{- with $schema := $schemaProxy.Schema -}}
-        {{- with $type := index $schema.Type 0 -}}
-            {{- if eq $type "object" -}}
-            {{- $childSchemaProxy = $schemaProxy -}}
-            {{- else if eq $type "array"}}
-            {{- $childSchemaProxy = $schema.Items.A -}}
-            {{- end -}}
-        {{- end -}}
-        {{- end -}}
-        {{- if and $childSchemaProxy (not $childSchemaProxy.IsReference) -}}
-            {{- if not $responseSchema }}
-### Responses Schema
-            {{- $responseSchema = true -}}
-            {{end}}
-            {{- $schemaID := refID (print $endpoint.OperationId "Response" "-" $status "-" $contentType "-" $childSchemaProxy.Schema.Title) -}}
-<a id="{{$schemaID}}"></a>
-Status Code {{$status}}
-> | name | type | required |description |
-> | --- | --- | --- | --- |
-            {{- template "schema" dict "SchemaProxy" $childSchemaProxy "Depth" 0}}
-        {{- end -}}
-    {{- end -}}
+{{- range $status, $response := $endpoint.Responses.Codes.FromOldest}}
+    {{- $responseID := print $endpoint.OperationId "Response" "-" $status }}
+    {{- $responseDesc := print "Status Code " $status -}}
+    {{- template "schemaContent" dict "Header" "Responses Schema" "Content" $response.Content "Id" $responseID "Description" $responseDesc  }}
 {{- end -}}    
 {{end}}
 </details>
@@ -88,12 +70,57 @@ Status Code {{$status}}
 <a id="{{refID $ref}}"></a>
 <details>
 <summary><code>{{refName $ref}}</code></summary>
+{{template "schemaRef" dict "Schema" $schema}}
+</details>
+{{end}}
+{{end}}
+{{end}}
+
+{{define "schemaContent"}}
+     {{- with $dict := . -}}
+        {{- $content := $dict.Content -}}
+        {{- $id := $dict.Id -}}
+        {{- $header := $dict.Header -}}
+        {{- $description := $dict.Description -}}
+        {{- $withHeader := false}}
+        {{- range $contentType, $mediaType := $content.FromOldest -}}
+            {{- $schemaProxy := $mediaType.Schema -}}
+            {{- $childSchemaProxy := null -}}
+            {{- with $schema := $schemaProxy.Schema -}}
+            {{- with $type := index $schema.Type 0 -}}
+                {{- if eq $type "object" -}}
+                {{- $childSchemaProxy = $schemaProxy -}}
+                {{- else if eq $type "array"}}
+                {{- $childSchemaProxy = $schema.Items.A -}}
+                {{- end -}}
+            {{- end -}}
+            {{- end -}}
+            {{- if and $childSchemaProxy (not $childSchemaProxy.IsReference) -}}
+                {{- if not $withHeader }}
+### {{$header}}
+                    {{- $withHeader = true -}}
+                {{end}}
+                {{- $schemaID := refID (print $id "-" $contentType "-" $childSchemaProxy.Schema.Title) -}}
+<a id="{{$schemaID}}"></a>
+{{ $description }}
+> | name | type | required |description |
+> | --- | --- | --- | --- |
+                {{- template "schemaProperties" dict "SchemaProxy" $childSchemaProxy "Depth" 0}}
+            {{- end -}}
+        {{- end -}}            
+    {{- end -}}
+{{end}}
+
+{{/* generate reference schema */}}
+{{define "schemaRef"}}
+{{- with $dict := . -}}
+{{- $schema := $dict.Schema -}}
 {{if $schema.Properties}}
 ### Properties
 > | name | type | required | description |
 > | --- | --- | --- | ---  |
 {{range $name, $prop := $schema.Properties.FromOldest -}}
-> | {{$name}} | {{template "schemaType" dict "SchemaProxy" $prop}} | {{contains $schema.Required $name}} | {{$prop.Schema.Description}} |
+> | {{$name}} | {{template "schemaType" dict "SchemaProxy" $prop}} | {{contains $schema.Required $name}} | {{$prop.Schema.Id}} |
 {{end}}
 {{else if $schema.Items -}}
 ### Properties
@@ -115,13 +142,11 @@ Status Code {{$status}}
 > | {{$node.Value}} |
 {{end}}
 {{end}}
-</details>
-{{end}}
 {{- end -}}
 {{end}}
 
-{{/* generate inline schema */}}
-{{define "schema"}}
+{{/* schema properties*/}}
+{{define "schemaProperties"}}
     {{- with $dict := . -}}
         {{- $depth := $dict.Depth -}}
         {{- $schemaProxy := $dict.SchemaProxy -}}
@@ -129,11 +154,11 @@ Status Code {{$status}}
         {{- if not $schemaProxy.IsReference -}}
             {{- with $schema := $schemaProxy.Schema}}
             {{- range $name, $prop := $schema.Properties.FromOldest}}
-> | {{range until $depth}}  {{end}}└── {{$name}} {{if $in}}| {{$in}} {{end}}| {{template "schemaType" dict "SchemaProxy" $prop}} | {{contains $schema.Required $name}} | {{$prop.Schema.Description}} |
+> | {{range until $depth}}  {{end}}└── {{$name}} {{if $in}}| {{$in}} {{end}}| {{template "schemaType" dict "SchemaProxy" $prop}} | {{contains $schema.Required $name}} | {{$prop.Schema.Id}} |
                 {{- if not $prop.IsReference -}}                   
                     {{- with  $type := index $schema.Type 0 -}}
                         {{- if eq $type "object" -}}
-{{template "schema" dict "SchemaProxy" $prop "Depth" (add $depth 1)}}
+{{template "schemaProperties" dict "SchemaProxy" $prop "Depth" (add $depth 1)}}
                         {{- end -}}
                     {{- end -}}
                 {{- end -}}
@@ -143,36 +168,36 @@ Status Code {{$status}}
     {{- end -}}
 {{end}}
 
-{{/* generate body type */}}
+{{/* body type */}}
 {{define "bodyType"}}
     {{- with $dict := . -}}
         {{- $body := .Body -}}
-        {{- $description := .Description -}}
-        {{template "contentType" dict "Description" $description "Content" $body.Content}}
+        {{- $id := .Id -}}
+        {{template "contentType" dict "Id" $id "Content" $body.Content}}
     {{- end -}}
 {{end}}
 
-{{/* generate content type */}}
+{{/* content type */}}
 {{define "contentType"}}
     {{- with $dict := . -}}
         {{- $content := $dict.Content -}}
-        {{- $description := $dict.Description -}}
+        {{- $id := $dict.Id -}}
         {{- $withContentType := and $content (gt $content.Len 1) -}}
         {{if $withContentType}}<dl>{{end}}
         {{- range $contentType, $mediaType := $content.FromOldest -}}
-            {{- $contentDesc := and $description (refID (print $description "-" $contentType)) -}}
-            {{- if $withContentType -}}<dt>**{{$contentType}}**</dt><dd>{{- end -}}{{template "schemaType" dict "Description" $contentDesc "SchemaProxy" $mediaType.Schema }}{{- if $withContentType -}}</dd>{{- end -}}
+            {{- $contentId := and $id (refID (print $id "-" $contentType)) -}}
+            {{- if $withContentType -}}<dt>**{{$contentType}}**</dt><dd>{{- end -}}{{template "schemaType" dict "Id" $contentId "SchemaProxy" $mediaType.Schema }}{{- if $withContentType -}}</dd>{{- end -}}
         {{- end -}}
         {{if $withContentType}}</dl>{{end}}
     {{- end -}}
 {{end}}
 
 
-{{/* generate schema proxy type */}}
+{{/* schema proxy type */}}
 {{define "schemaType"}}
     {{- with $dict := . -}}
         {{- $schemaProxy := $dict.SchemaProxy -}}
-        {{- $description := $dict.Description -}}
+        {{- $id := $dict.Id -}}
         {{- if $schemaProxy.IsReference -}}
             [{{ refName $schemaProxy.GetReference }}](#{{ refAnchor $schemaProxy.GetReference}})
         {{- else -}}
@@ -180,10 +205,10 @@ Status Code {{$status}}
                 {{- if .Type -}}
                     {{- with $type := index .Type 0 -}}
                         {{- if eq $type "array" -}}
-                            [{{template "schemaType" dict "Description" $description "SchemaProxy" $schema.Items.A}}]
+                            [{{template "schemaType" dict "Id" $id "SchemaProxy" $schema.Items.A}}]
                         {{- else if eq $type "object" -}}
-                            {{- if $description -}}
-                            [{{or $schema.Title "object"}}](#{{refID (print $description "-" $schema.Title)}})
+                            {{- if $id -}}
+                            [{{or $schema.Title "object"}}](#{{refID (print $id "-" $schema.Title)}})
                             {{- else -}}
                             object
                             {{- end -}}
