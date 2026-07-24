@@ -6,8 +6,14 @@
 {{end}}
 
 {{define "endpoints"}}
-{{range $tag, $endpoints := .TagToEndpoints}}
+{{- $model := .}}
+{{range $tag, $endpoints := $model.TagToEndpoints}}
+{{- $tagDescription := ""}}
+{{- with $tagInfos := index $model.Tags $tag -}}
+{{- $tagDescription = $tagInfos.Description -}}
+{{- end -}}
 ## {{$tag}}
+{{$tagDescription}}
 {{range $endpoint := $endpoints}}
 <a id="{{$endpoint.OperationId}}"></a>
 <details>
