@@ -4,6 +4,8 @@ go 1.26.5
 
 require (
 	github.com/pb33f/libopenapi v0.38.7
+	github.com/pb33f/testify v0.1.0
+	github.com/pmezard/go-difflib v1.0.0
 	github.com/urfave/cli/v3 v3.10.1
 )
 
