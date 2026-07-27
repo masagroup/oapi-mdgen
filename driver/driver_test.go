@@ -193,16 +193,21 @@ func requireEqualWithDiff(t *testing.T, expected, actual []byte) {
 func TestGenerateMarkdown(t *testing.T) {
 	for _, test := range []struct {
 		name      string
-		file      string
 		wantError bool
 	}{
-		{"notags", "notags", false},
-		{"tags", "tags", false},
+		{"notags", false},
+		{"tags", false},
+		{"params.body", false},
+		{"params.body.ref", false},
+		{"params.body.inline", false},
+		{"params.body.content", false},
+		{"responses.simple", false},
+		{"responses.content.ref", false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			input := createInput(t, fmt.Sprintf("testdata/%s.yaml", test.file))
+			input := createInput(t, fmt.Sprintf("testdata/%s.yaml", test.name))
 			defer input.Close()
-			output := createOutput(t, fmt.Sprintf("testdata/%s.md", test.file))
+			output := createOutput(t, fmt.Sprintf("testdata/%s.md", test.name))
 			defer output.Close()
 			err := GenerateMarkdown(input, output)
 			// Check error expectations
@@ -210,7 +215,7 @@ func TestGenerateMarkdown(t *testing.T) {
 				t.Fatalf("GenerateMarkdown %s error = %v, wantErr %v", test.name, err, test.wantError)
 			}
 			// check result
-			expected, err := os.ReadFile(fmt.Sprintf("testdata/%s.md", test.file))
+			expected, err := os.ReadFile(fmt.Sprintf("testdata/%s.md", test.name))
 			require.NoError(t, err)
 			actual, err := output.Bytes()
 			require.NoError(t, err)

@@ -1,0 +1,21 @@
+openapi: '3.2.0'
+info:
+  title: Sample
+  version: '1.0'
+  description: sample tests
+paths:
+  /test:
+    get:
+      summary: test endpoint
+      description: this is a sample test
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Bad Request (e.g. invalid request)
+        '500':
+          description: Internal Server Error
+        '502':
+          description: Bad Gateway
+        '504':
+          description: Gateway Timeout
