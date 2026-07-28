@@ -50,7 +50,7 @@ test:
 .PHONY: lint
 lint:
 	@echo "[lint]"
-	@docker run --rm -v $(CURDIR):/pwd -w /pwd golangci/golangci-lint:v2.9.0-alpine golangci-lint run --timeout=5m
+	@docker run --rm -v $(CURDIR):/pwd -w /pwd golangci/golangci-lint:v2.12.0-alpine golangci-lint run --timeout=5m
 
 .PHONY: coverage
 coverage:
