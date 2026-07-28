@@ -20,7 +20,11 @@ make build
 Alternatively, you can install or run it directly using `go`:
 
 ```bash
-go run oapi-mdgen.go -i input.yaml -o output.md
+go install github.com/masagroup/oapi-mdgen
+```
+
+```bash
+go run github.com/masagroup/oapi-mdgen -i input.yaml -o output.md
 ```
 
 ## Usage
