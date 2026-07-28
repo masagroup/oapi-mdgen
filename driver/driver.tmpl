@@ -104,11 +104,12 @@
             {{- if and $childSchemaProxy (not $childSchemaProxy.IsReference) -}}
                 {{- if not $withHeader }}
 ### {{$header}}
+{{$description}}
                     {{- $withHeader = true -}}
                 {{end}}
-                {{- $schemaID := refID (print $id "-" $contentType "-" $childSchemaProxy.Schema.Title) -}}
+                {{- $schemaID := refID (print $id "-" $contentType "-" $childSchemaProxy.Schema.Title)}}
 <a id="{{$schemaID}}"></a>
-{{ $description }}
+{{or $childSchemaProxy.Schema.Title "object"}}
 > | name | type | required |description |
 > | --- | --- | --- | --- |
                 {{- template "schemaProperties" dict "SchemaProxy" $childSchemaProxy "Depth" 0}}
@@ -160,7 +161,7 @@
         {{- if not $schemaProxy.IsReference -}}
             {{- with $schema := $schemaProxy.Schema}}
             {{- range $name, $prop := $schema.Properties.FromOldest}}
-> | {{range until $depth}}  {{end}}└── {{$name}} {{if $in}}| {{$in}} {{end}}| {{template "schemaType" dict "SchemaProxy" $prop}} | {{contains $schema.Required $name}} | {{$prop.Schema.Id}} |
+> | {{range until $depth}}{{range until 8}}&nbsp;{{end}}{{end}}└── {{$name}} {{if $in}}| {{$in}} {{end}}| {{template "schemaType" dict "SchemaProxy" $prop}} | {{contains $schema.Required $name}} | {{$prop.Schema.Id}} |
                 {{- if not $prop.IsReference -}}                   
                     {{- with  $type := index $schema.Type 0 -}}
                         {{- if eq $type "object" -}}

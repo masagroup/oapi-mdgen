@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 
@@ -30,11 +31,29 @@ func main() {
 			}},
 		UseShortOptionHandling: true,
 		Action: func(ctx context.Context, c *cli.Command) error {
-			input := c.String("input")
-			output := c.String("output")
-			if input == "" || output == "" {
+			inputFlag := c.String("input")
+			outputFlag := c.String("output")
+			if inputFlag == "" || outputFlag == "" {
 				return cli.Exit("input and output flags are required", 1)
 			}
+
+			// load an OpenAPI 3 specification from bytes
+			input, err := os.Open(inputFlag)
+			if err != nil {
+				return fmt.Errorf("cannot read input file: %w", err)
+			}
+
+			// create output file
+			output, err := os.Create(outputFlag)
+			if err != nil {
+				return fmt.Errorf("cannot create output file: %w", err)
+			}
+			defer func() {
+				if err2 := output.Close(); err2 != nil && err == nil {
+					err = fmt.Errorf("cannot close output file: %w", err2)
+				}
+			}()
+
 			return driver.GenerateMarkdown(input, output)
 		},
 	}

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"io"
 	"iter"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -145,7 +145,7 @@ func extractModel(document *v3.Document, model *Model) error {
 		}
 		for method, operation := range mapIterator(pathItem.GetOperations()) {
 			operationMethod := strings.ToUpper(method)
-			operationID, err := pathToCamelCase(operationMethod + "-" + path)
+			operationID, err := pathToCamelCase(method + "-" + path)
 			if err != nil {
 				return err
 			}
@@ -171,17 +171,21 @@ func extractModel(document *v3.Document, model *Model) error {
 			for _, param := range operation.Parameters {
 				extractSchema(param.Schema, model)
 			}
+			// request body
 			if operation.RequestBody != nil {
 				for _, content := range operation.RequestBody.Content.FromOldest() {
 					extractSchema(content.Schema, model)
 				}
 			}
-			for _, response := range operation.Responses.Codes.FromOldest() {
-				for _, content := range response.Content.FromOldest() {
-					extractSchema(content.Schema, model)
-				}
-				for _, header := range response.Headers.FromOldest() {
-					extractSchema(header.Schema, model)
+			// responses
+			if operation.Responses != nil {
+				for _, response := range operation.Responses.Codes.FromOldest() {
+					for _, content := range response.Content.FromOldest() {
+						extractSchema(content.Schema, model)
+					}
+					// for _, header := range response.Headers.FromOldest() {
+					// 	extractSchema(header.Schema, model)
+					// }
 				}
 			}
 		}
@@ -211,18 +215,16 @@ func extractSchema(schemaProxy *base.SchemaProxy, model *Model) {
 	}
 }
 
-func GenerateMarkdown(input, output string) (err error) {
-	// load an OpenAPI 3 specification from bytes
-	bytes, err := os.ReadFile(input)
+func GenerateMarkdown(input io.Reader, output io.Writer) (err error) {
+	bytes, err := io.ReadAll(input)
 	if err != nil {
-		return fmt.Errorf("cannot read input file: %w", err)
+		return err
 	}
-
 	// create a new document from specification bytes
 	document, err := libopenapi.NewDocument(bytes)
 	// if anything went wrong, an error is thrown
 	if err != nil {
-		panic(fmt.Sprintf("cannot create new document: %e", err))
+		return fmt.Errorf("cannot create new document: %w", err)
 	}
 
 	// because we know this is a v3 spec, we can build a ready to go model from it.
@@ -260,19 +262,8 @@ func GenerateMarkdown(input, output string) (err error) {
 		return fmt.Errorf("cannot parse markdown template: %w", err)
 	}
 
-	// create output file
-	f, err := os.Create(output)
-	if err != nil {
-		return fmt.Errorf("cannot create output file: %w", err)
-	}
-	defer func() {
-		if err2 := f.Close(); err2 != nil && err == nil {
-			err = fmt.Errorf("cannot close output file: %w", err2)
-		}
-	}()
-
 	// execute template with v3 model as data
-	err = tmpl.ExecuteTemplate(f, "main", mdModel)
+	err = tmpl.ExecuteTemplate(output, "main", mdModel)
 	if err != nil {
 		return fmt.Errorf("cannot execute markdown template: %w", err)
 	}

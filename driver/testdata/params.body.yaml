@@ -1,0 +1,31 @@
+openapi: '3.2.0'
+info:
+  title: Sample
+  version: '1.0'
+  description: sample tests
+paths:
+  /test:
+    parameters:
+        - description: first param.
+          in: path
+          name: param1
+          required: true
+          schema:
+            type: string
+    post:
+      summary: test endpoint
+      description: this is a sample test
+      parameters:
+        - name: param2
+          description: second param.
+          in: path
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary

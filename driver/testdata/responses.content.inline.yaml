@@ -1,0 +1,30 @@
+openapi: '3.2.0'
+info:
+  title: Sample
+  version: '1.0'
+  description: sample tests
+paths:
+  /test:
+    get:
+      summary: test endpoint
+      description: this is a sample test
+      responses:
+        '200':
+            description: OK
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    param1:
+                        type: string
+                        description: first param.
+                    param2:
+                        type: object
+                        description: second param.
+                        properties:
+                          param3:
+                              type: integer
+                              minimum: 1
+                              format: int32
+                              default: 1

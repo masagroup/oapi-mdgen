@@ -1,0 +1,14 @@
+openapi: '3.2.0'
+info:
+  title: Sample
+  version: '1.0'
+  description: sample tests
+tags:
+  - name: OneTag
+    description: OneTag description ...
+paths:
+  /test:
+    get:
+      operationId: getTestId
+      tags:
+        - OneTag
