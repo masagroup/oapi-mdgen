@@ -183,9 +183,9 @@ func extractModel(document *v3.Document, model *Model) error {
 					for _, content := range response.Content.FromOldest() {
 						extractSchema(content.Schema, model)
 					}
-					for _, header := range response.Headers.FromOldest() {
-						extractSchema(header.Schema, model)
-					}
+					// for _, header := range response.Headers.FromOldest() {
+					// 	extractSchema(header.Schema, model)
+					// }
 				}
 			}
 		}
@@ -224,7 +224,7 @@ func GenerateMarkdown(input io.Reader, output io.Writer) (err error) {
 	document, err := libopenapi.NewDocument(bytes)
 	// if anything went wrong, an error is thrown
 	if err != nil {
-		panic(fmt.Sprintf("cannot create new document: %e", err))
+		return fmt.Errorf("cannot create new document: %w", err)
 	}
 
 	// because we know this is a v3 spec, we can build a ready to go model from it.

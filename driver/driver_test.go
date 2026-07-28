@@ -195,6 +195,8 @@ func TestGenerateMarkdown(t *testing.T) {
 		name      string
 		wantError bool
 	}{
+		{"empty", true},
+		{"invalid", true},
 		{"notags", false},
 		{"tags", false},
 		{"params.body", false},
@@ -202,7 +204,9 @@ func TestGenerateMarkdown(t *testing.T) {
 		{"params.body.inline", false},
 		{"params.body.content", false},
 		{"responses.simple", false},
+		{"responses.array", false},
 		{"responses.content.ref", false},
+		{"responses.content.inline", false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			input := createInput(t, fmt.Sprintf("testdata/%s.yaml", test.name))
