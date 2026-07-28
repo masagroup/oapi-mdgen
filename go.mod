@@ -1,6 +1,6 @@
 module github.com/masagroup/oapi-mdgen
 
-go 1.26.5
+go 1.26
 
 require (
 	github.com/pb33f/libopenapi v0.38.7
