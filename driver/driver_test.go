@@ -210,9 +210,13 @@ func TestGenerateMarkdown(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			input := createInput(t, fmt.Sprintf("testdata/%s.yaml", test.name))
-			defer input.Close()
+			defer func() {
+				require.NoError(t, input.Close())
+			}()
 			output := createOutput(t, fmt.Sprintf("testdata/%s.md", test.name))
-			defer output.Close()
+			defer func() {
+				require.NoError(t, output.Close())
+			}()
 			err := GenerateMarkdown(input, output)
 			// Check error expectations
 			if (err != nil) != test.wantError {
