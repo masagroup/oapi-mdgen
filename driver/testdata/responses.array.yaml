@@ -1,0 +1,29 @@
+openapi: '3.2.0'
+info:
+  title: Sample
+  version: '1.0'
+  description: sample tests
+paths:
+  /test:
+    get:
+      summary: test endpoint
+      description: this is a sample test
+      responses:
+        '200':
+            description: OK
+            content:
+              application/json:
+                schema:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/ObjectInfos'
+components:
+  schemas:   
+    ObjectInfos:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the bucket.
+      required:
+        - name   
