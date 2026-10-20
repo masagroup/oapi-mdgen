@@ -8,7 +8,6 @@ import (
 	"io"
 	"iter"
 	"path/filepath"
-	"slices"
 	"strings"
 	"unicode"
 
@@ -193,6 +192,9 @@ func extractModel(document *v3.Document, model *Model) error {
 	return nil
 }
 
+// extractSchema registers every referenced schema reachable from schemaProxy
+// into model.RefToSchema. A reference is visited only once so that recursive
+// schemas (a node whose children are nodes) do not loop forever.
 func extractSchema(schemaProxy *base.SchemaProxy, model *Model) {
 	if schemaProxy == nil {
 		return
@@ -202,17 +204,29 @@ func extractSchema(schemaProxy *base.SchemaProxy, model *Model) {
 		return
 	}
 	if schemaProxy.IsReference() {
-		// reference
-		model.RefToSchema[schemaProxy.GetReference()] = schema
-	} else if items := schema.Items; items != nil && items.IsA() {
-		// inline
+		ref := schemaProxy.GetReference()
+		if _, visited := model.RefToSchema[ref]; visited {
+			return
+		}
+		model.RefToSchema[ref] = schema
+	}
+	if items := schema.Items; items != nil && items.IsA() {
 		extractSchema(items.A, model)
+	}
+	if additional := schema.AdditionalProperties; additional != nil && additional.IsA() {
+		extractSchema(additional.A, model)
 	}
 	if properties := schema.Properties; properties != nil {
 		for _, prop := range properties.FromOldest() {
 			extractSchema(prop, model)
 		}
 	}
+	for _, composed := range [][]*base.SchemaProxy{schema.AllOf, schema.OneOf, schema.AnyOf} {
+		for _, child := range composed {
+			extractSchema(child, model)
+		}
+	}
+	extractSchema(schema.Not, model)
 }
 
 func GenerateMarkdown(input io.Reader, output io.Writer) (err error) {
@@ -246,14 +260,17 @@ func GenerateMarkdown(input io.Reader, output io.Writer) (err error) {
 	}
 
 	funcMap := template.FuncMap{
-		"dict":      dict,
-		"add":       add,
-		"refName":   refName,
-		"refAnchor": refAnchor,
-		"refID":     refID,
-		"contains":  slices.Contains[[]string, string],
-		"until":     until,
-		"null":      null,
+		"dict":            dict,
+		"add":             add,
+		"refName":         refName,
+		"refAnchor":       refAnchor,
+		"refID":           refID,
+		"until":           until,
+		"null":            null,
+		"effectiveType":   effectiveType,
+		"compositionKind": compositionKind,
+		"variants":        variants,
+		"properties":      properties,
 	}
 
 	// we can now use the v3 model to generate markdown documentation.

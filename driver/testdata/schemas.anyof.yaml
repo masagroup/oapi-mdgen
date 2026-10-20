@@ -1,0 +1,28 @@
+openapi: '3.2.0'
+info:
+  title: Sample
+  version: '1.0'
+  description: sample tests
+paths:
+  /test:
+    get:
+      summary: test endpoint
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Identifier'
+components:
+  schemas:
+    Identifier:
+      description: A numeric or textual identifier.
+      anyOf:
+        - type: integer
+          format: int64
+        - type: string
+        - $ref: '#/components/schemas/Uuid'
+    Uuid:
+      type: string
+      format: uuid

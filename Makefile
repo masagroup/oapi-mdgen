@@ -42,6 +42,11 @@ build:
 	@echo "[build]"
 	@$(GO) build ./...
 
+.PHONY: vet
+vet:
+	@echo "[vet]"
+	@$(GO) vet ./...
+
 .PHONY: test
 test:
 	@echo "[test]"

@@ -1,0 +1,84 @@
+openapi: '3.2.0'
+info:
+  title: Sample
+  version: '1.0'
+  description: sample tests
+paths:
+  /test:
+    post:
+      summary: test endpoint
+      requestBody:
+        description: parameters
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Parameter'
+      responses:
+        '200':
+          description: OK
+components:
+  schemas:
+    Parameter:
+      type: object
+      description: Base parameter
+      oneOf:
+        - $ref: '#/components/schemas/BooleanParameter'
+        - $ref: '#/components/schemas/NullParameter'
+        - $ref: '#/components/schemas/StringParameter'
+        - $ref: '#/components/schemas/UnmappedParameter'
+      discriminator:
+        propertyName: type
+        mapping:
+          string: '#/components/schemas/StringParameter'
+          boolean: '#/components/schemas/BooleanParameter'
+          "null": '#/components/schemas/NullParameter'
+      properties:
+        type:
+          type: string
+          description: Discriminator type for the parameter
+      required:
+        - type
+    BooleanParameter:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - boolean
+        value:
+          type: boolean
+      required:
+        - type
+        - value
+    NullParameter:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - "null"
+      required:
+        - type
+    StringParameter:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - string
+        value:
+          type: string
+      required:
+        - type
+        - value
+    UnmappedParameter:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - UnmappedParameter
+      required:
+        - type

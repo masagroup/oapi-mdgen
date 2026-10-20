@@ -17,7 +17,7 @@ this is a sample test
 > | body | body | object | false |   |
 > | └── param1 | body | string | false |  |
 > | └── param2 | body | object | false |  |
-> | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── param3 | integer(int32)<br/>*Default value:* 1 | false |  |
+> | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── param3 | body | integer(int32)<br/>*Default value:* 1 | false |  |
 
 </details>
 

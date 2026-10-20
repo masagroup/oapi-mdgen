@@ -7,6 +7,7 @@
 - Parses OpenAPI v3 specifications.
 - Generates structured Markdown documentation grouping endpoints by tags.
 - Includes details on requests, responses, and schemas.
+- Documents composed schemas: `allOf` properties are flattened, `oneOf`/`anyOf` alternatives are listed with their `discriminator` value.
 - Built on top of [libopenapi](https://github.com/pb33f/libopenapi).
 
 ## Installation
@@ -49,7 +50,8 @@ oapi-mdgen -i openapi.yaml -o api-docs.md
 The project includes a `Makefile` for common tasks:
 
 - `make build`: Builds the project.
-- `make test`: Runs the tests.
+- `make vet`: Runs `go vet`.
+- `make test`: Runs the tests. Golden files in `driver/testdata` are regenerated with `go test ./driver -update`.
 - `make lint`: Runs `golangci-lint` (requires Docker).
 - `make coverage`: Generates test coverage data.
 - `make coverage-html`: Generates an HTML report for test coverage.

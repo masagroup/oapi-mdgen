@@ -27,4 +27,4 @@ jobs:
         path: go
     - name: Build And Test
       working-directory: go
-      run: make build test
+      run: make build vet test

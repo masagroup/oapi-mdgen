@@ -16,3 +16,10 @@ this is a sample test
 > | status | description | schema |
 > | --- | --- | --- |
 > | 200 | OK |  |
+
+</details>
+
+
+
+
+

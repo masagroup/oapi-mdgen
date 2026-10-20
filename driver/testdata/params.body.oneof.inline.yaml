@@ -1,0 +1,42 @@
+openapi: '3.2.0'
+info:
+  title: Sample
+  version: '1.0'
+  description: sample tests
+paths:
+  /test:
+    post:
+      summary: test endpoint
+      requestBody:
+        description: Creation request body
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                target:
+                  description: The target of the request.
+                  oneOf:
+                    - $ref: '#/components/schemas/Unit'
+                    - $ref: '#/components/schemas/Party'
+                value:
+                  anyOf:
+                    - type: string
+                    - type: integer
+              required:
+                - target
+      responses:
+        '200':
+          description: OK
+components:
+  schemas:
+    Unit:
+      type: object
+      properties:
+        id:
+          type: integer
+    Party:
+      type: object
+      properties:
+        id:
+          type: integer

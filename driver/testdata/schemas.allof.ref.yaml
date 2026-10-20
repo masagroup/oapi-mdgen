@@ -1,0 +1,45 @@
+openapi: '3.2.0'
+info:
+  title: Sample
+  version: '1.0'
+  description: sample tests
+paths:
+  /test:
+    get:
+      summary: test endpoint
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Circle'
+components:
+  schemas:
+    Shape:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The shape name.
+        color:
+          type: string
+          description: The shape color.
+      required:
+        - name
+    Circle:
+      description: A circle is a shape with a radius.
+      allOf:
+        - $ref: '#/components/schemas/Shape'
+        - type: object
+          properties:
+            radius:
+              type: number
+              format: double
+              description: The circle radius.
+            color:
+              type: string
+              description: The circle color, overrides the shape color.
+          required:
+            - radius
+            - color

@@ -1,0 +1,73 @@
+openapi: '3.2.0'
+info:
+  title: Sample
+  version: '1.0'
+  description: sample tests
+paths:
+  /shapes:
+    post:
+      summary: creates a shape
+      requestBody:
+        description: Creation request body
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/Shape'
+                - type: object
+                  properties:
+                    category:
+                      type: string
+                    points:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          latitude:
+                            type: number
+                            format: double
+                          longitude:
+                            type: number
+                            format: double
+                    origin:
+                      type: object
+                      properties:
+                        x:
+                          type: integer
+                        y:
+                          type: integer
+                  required:
+                    - category
+      responses:
+        '200':
+          description: OK
+    put:
+      summary: updates a shape
+      requestBody:
+        description: Update request body
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/Shape'
+                - type: object
+                  properties:
+                    category:
+                      type: string
+          application/xml:
+            schema:
+              $ref: '#/components/schemas/Shape'
+      responses:
+        '200':
+          description: OK
+components:
+  schemas:
+    Shape:
+      type: object
+      properties:
+        name:
+          type: string
+        uuid:
+          type: string
+      required:
+        - name
